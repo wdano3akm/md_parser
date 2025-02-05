@@ -25,13 +25,6 @@
  * Instead blocks must be one at a time, so we just have a struct with different states
 */
 
-struct HEADER{
-	int weight;
-};
-
-struct LIST {
-	int indent;	
-};
 
 enum block {NORMAL_TEXT, CODE_BLOCK, LIST};
 enum line {BOLD, ITALIC, CODE};
@@ -43,7 +36,7 @@ int pop();
 char* parse_inline_md(char*);
 
 int main(){
-	char* text = parse_inline_md("![[source.png]]  what");
+	char* text = parse_inline_md("[this_is_a_alias](and_this_is_the_link)");
 	int i = 0;
 	while (text[i]) putchar(text[i++]);
 	return 0;
@@ -125,14 +118,43 @@ char* parse_inline_md(char *md_string){
 					}
 				}
 				break;
-			case '[': ;
+			case '[': 
+				int start_alias = ++i;
+				start_len = strlen(html);
+				while (md_string[++i]) {
+					if (md_string[i] == ']' && md_string[++i] == '('){
+						int start_link = ++i;
+						while (md_string[++i]) {
+							if (md_string[i] == ')') {
+								int length_link = i - start_link ;
+								char link[length_link + 1];
+								strncpy(link,md_string + start_link, length_link);
+								link[length_link] = '\0';
+								int length_alias = start_link - start_alias - 2;
+								char alias[length_alias+ 1];
+								strncpy(alias ,md_string + start_alias, length_alias);
+								alias[length_alias] = '\0';
+								int anchor_len = length_alias + length_link + strlen("<a href=\"\"></a>") + 1;
+								char anchor[anchor_len];
+								sprintf(anchor, "<a href=\"%s\">%s</a>",link, alias);
+								strcat(html, anchor);
+							}
+						}
+						break;
+					}	
+				}
+				if (start_len == strlen(html)){
+					i = start_alias;
+					strcat(html, "[");
+				}
+
 			default: 
 				int c = strlen(html);
 				html[c] = md_string[i];
 		}
 	}
 
-	strcat(html, "<p>");
+	strcat(html, "</p>");
 	return html;
 }
 
