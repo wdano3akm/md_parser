@@ -574,7 +574,7 @@ parse(char *in)
 	return out;
 }
 
-
+/*
 int
 main(int argc, char **argv)
 {
@@ -585,3 +585,4 @@ main(int argc, char **argv)
 	parse(input);
 	fprintf(stdout, "%s", output);
 }
+*/

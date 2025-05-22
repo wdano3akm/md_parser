@@ -1,0 +1,2 @@
+char * parse(char*);
+
