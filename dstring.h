@@ -5,3 +5,4 @@ typedef struct dstirng {
 
 dstring init(size_t);
 void append(dstring *, char *);
+void append_c(dstring *, char);

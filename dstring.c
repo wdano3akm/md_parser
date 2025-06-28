@@ -21,13 +21,28 @@ void
 append(dstring *str, char *c)
 {
 	size_t len, newlen;
-	len = (size_t) str.tail - (size_t) str.ptr;
+	len = (size_t) str->tail - (size_t) str->ptr;
 	newlen = strlen(c) + len + 1;
-	if (new_len >= str->size) {
+	if (newlen >= str->size) {
 		str->ptr = realloc(str->ptr, str->size * 2);
 		str->tail = str->ptr + len;
 		str->size = str->size * 2;
 	}
-	strcat(str->ptr, c);
+	strcat(str->tail, c);
+	str->tail += strlen(c);
 }
 
+void
+append_c(dstring *str, char c)
+{
+	size_t len, newlen;
+	len = (size_t) str->tail - (size_t) str->ptr;
+	if (len+1 >= str->size) {
+		str->ptr = realloc(str->ptr, str->size * 2);
+		str->tail = str->ptr + len;
+		str->size = str->size * 2;
+	}
+	str->tail[0] = c;
+	str->tail++;
+	str->tail[0] = '\0';
+}
