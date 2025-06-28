@@ -11,7 +11,7 @@ int main(int argc, char** argv){
 
 	char* file_contents = read_file(argv[1]);
 	char* output = parse(file_contents);
-	if (argc == 2) printf("%s", output);
+	if (argc == 2) printf("%s\n", output);
 	else if (argc == 3) writer(output, argv[2]); 
 	else {
 		fprintf(stderr, "Too many arguments used");
