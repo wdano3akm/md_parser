@@ -1,32 +1,33 @@
 #include <stddef.h>
 #include <stdlib.h>
 #include <string.h>
-typedef struct dstirng {
-	char *ptr;
-	size_t size;
-} dstring;
 
-char* init(size_t);
-void append(dstring*, char*);
+#include "dstring.h"
 
-
-
-dstring miao(size_t start_size){
+dstring
+init(size_t size)
+{
 	dstring out;
-	if (start_size < 1) return out; 
-	char* base_alloc = malloc(start_size);
-	out.size = start_size;
-	out.ptr = base_alloc;
-	return out ;
+	if (size < 1)
+		return out;
+	out.size = size;
+	out.ptr = malloc(size);
+	out.tail = out.ptr;
+	*(out.tail) = '\0';
+	return out;
 }
 
-void append(dstring* dstring, char* c){
-	size_t len = strlen(dstring->ptr); // excludes \0 in calc
-	size_t	new_len = strlen(c) + len + 1;
-	if (new_len >= dstring->size) {
-		dstring->ptr = realloc(dstring->ptr, dstring->size * 2);
-		dstring->size = dstring->size * 2;
+void
+append(dstring *str, char *c)
+{
+	size_t len, newlen;
+	len = (size_t) str.tail - (size_t) str.ptr;
+	newlen = strlen(c) + len + 1;
+	if (new_len >= str->size) {
+		str->ptr = realloc(str->ptr, str->size * 2);
+		str->tail = str->ptr + len;
+		str->size = str->size * 2;
 	}
-	strcat(c, dstring->ptr);
+	strcat(str->ptr, c);
 }
 
