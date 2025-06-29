@@ -2,8 +2,10 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include "dstring.h"
+
 #define STACK_SIZE 2048
-#define MAXLEN 2048 * 10
+#define MAXLEN 2048
 
 /**
  * There are two types of md elements: BLOCK and INLINE
@@ -34,8 +36,8 @@ int rsp = 0;
 char stack[STACK_SIZE];
 void push(int);
 int pop();
-char* parse_line_md(char*);
-char* parse_block_md(char*);
+void parse_line_md(dstring *, char*);
+void parse_block_md(dstring *, char*);
 
 /*
 int main(){
@@ -46,63 +48,60 @@ int main(){
 }
 */
 
-char* parse_line_md(char *md_string){
+void
+parse_line_md(dstring *html, char *md_string)
+{
 	int i = 0;
-	char *html = malloc(MAXLEN);
-	*html = '\0';
+	char *tail;
 
-
-	for(; md_string[i] ; i++){
+	for(; md_string[i]; i++){
 		switch (md_string[i]) {
-			case '*': 
+			case '*':
 				int x = pop();
 				if (md_string[++i] == '*'){
 					if (x == BOLD){
-						strcat(html, "</strong>");
+						append(html, "</strong>");
 					} else {
 						push(x);
 						push(BOLD);
-						strcat(html, "<strong>");
+						append(html, "<strong>");
 					}
 				}else{
 					i--;
 					if (x == ITALIC){
-						strcat(html, "</em>");
+						append(html, "</em>");
 					} else {
 						push(x);
-						push( ITALIC);
-						strcat(html, "<em>");
+						push(ITALIC);
+						append(html, "<em>");
 					}
 				}
 				break;
-			case '\n': 
-				
-				return html;
-				free( html);
-				html = NULL;
-				break;
+			case '\n':
+				fprintf(stderr, "%s:%d: Shouldn't reach this code\n", __FILE__, __LINE__);
+				return;
 			case '`':
 				x = pop();
 				if (x == CODE){
-					strcat(html, "</code>");
+					append(html, "</code>");
 				} else {
-					push( x); 
-					push( CODE);
-					strcat(html, "<code>");
+					push(x);
+					push(CODE);
+					append(html, "<code>");
 				} break;
-			case '!': 
+			case '!':
 				if (md_string[i-1] != '\n')
 					continue;
-				int start_len = strlen(html);
+				tail = html->tail;
 				if (md_string[++i] == '[' && md_string[++i] == '[') {
 					int start_link = ++i;
 					while (md_string[++i]) {
 						if (md_string[i] == ']' && md_string[++i] == ']') {
 							int length = i - start_link - 1;
 
-							char file_location[length + 1];  
+							char file_location[length + 1];
 							strncpy(file_location, md_string + start_link, length);
-							file_location[length] = '\0';  
+							file_location[length] = '\0';
 
 							int buffer_size = length + strlen("<iframe src=\"\"></iframe>") + 1;
 							char* buffer = calloc(1, buffer_size);
@@ -111,21 +110,20 @@ char* parse_line_md(char *md_string){
 							strcat(buffer, file_location);
 							strcat(buffer, "\"></iframe>");
 
-							strcat(html, buffer);
+							append(html, buffer);
 
 							free(buffer);
-							buffer = NULL;
 						}
 					}
-					if (start_len == strlen(html)) {
+					if (tail == html->tail) {
 						i = start_link;
-						strcat(html, "![[");
+						append(html, "![[");
 					}
 				}
 				break;
-			case '[': 
+			case '[':
 				int start_alias = ++i;
-				start_len = strlen(html);
+				tail = html->tail;
 				while (md_string[++i]) {
 					if (md_string[i] == ']' && md_string[++i] == '('){
 						int start_link = ++i;
@@ -142,87 +140,81 @@ char* parse_line_md(char *md_string){
 								int anchor_len = length_alias + length_link + strlen("<a href=\"\"></a>") + 1;
 								char anchor[anchor_len];
 								sprintf(anchor, "<a href=\"%s\">%s</a>",link, alias);
-								strcat(html, anchor);
+								append(html, anchor);
 							}
 						}
 						break;
 					}	
 				}
-				if (start_len == strlen(html)){
+				if (tail == html->tail) {
 					i = start_alias;
-					strcat(html, "[");
+					append(html, "[");
 				}
-
-			default: 
-				int c = strlen(html);
-				html[c] = md_string[i];
-				html[c+1] = '\0';
+				break; // missing?
+			default:
+				append_c(html, md_string[i]);
 		}
 	}
-
-	return html;
-	free( html);
-	html = NULL;
 }
 
 
-char* parse_block_md(char *md_string){
+void
+parse_block_md(dstring *html, char *md_string){
 	int i = 0;
-	char *html = malloc(MAXLEN);
-	html[0] = 0;
+	char *tail;
 
-
-	for(; md_string[i] ; i++){
+	for(; md_string[i]; i++){
 		switch (md_string[i]) {
-			case '*': 
+			case '*':
 				int x = pop();
 				if (md_string[++i] == '*'){
 					if (x == BOLD){
-						strcat(html, "</strong>");
+						append(html, "</strong>");
 					} else {
 						push(x);
 						push(BOLD);
-						strcat(html, "<strong>");
+						append(html, "<strong>");
 					}
 				}else{
 					i--;
 					if (x == ITALIC){
-						strcat(html, "</em>");
+						append(html, "</em>");
 					} else {
 						push(x);
-						push( ITALIC);
-						strcat(html, "<em>");
+						push(ITALIC);
+						append(html, "<em>");
 					}
 				}
 				break;
-			case '\n': 
+			case '\n':
 				// check for 2 consecutive \n to </p> <p> or just one to \br
 				if (md_string[++i] == '\n'){
-					strcat(html, "</p><p>");
+					append(html, "</p>\n<p>\n");
+					fprintf(stderr, "%s:%d: Shouldn't reach this code\n", __FILE__, __LINE__);
 				} else {
-					strcat(html, "<br />");
+					append(html, "<br />\n");
 					i--;
 				} break;
 			case '`':
 				x = pop();
 				if (x == CODE){
-					strcat(html, "</code>");
+					append(html, "</code>");
 				} else {
-					push( x); 
-					push( CODE);
-					strcat(html, "<code>");
+					push(x);
+					push(CODE);
+					append(html, "<code>");
 				} break;
-			case '!': 
-				int start_len = strlen(html);
+			case '!':
+				tail = html->tail;
 				if ((md_string[i-1] == '\n') && md_string[i+1] == '[' && md_string[i+2] == '[') {
 					int start_link = i+3;
 					while (md_string[++i]) {
 						if (md_string[i] == ']' && md_string[++i] == ']') {
 							int length = i - start_link - 1;
 
-							char file_location[length + 1];  
+							char file_location[length + 1];
 							strncpy(file_location, md_string + start_link, length);
-							file_location[length] = '\0';  
+							file_location[length] = '\0';
 
 							int buffer_size = length + strlen("<iframe src=\"\"></iframe>") + 1;
 							char* buffer = calloc(1, buffer_size);
@@ -231,25 +223,22 @@ char* parse_block_md(char *md_string){
 							strcat(buffer, file_location);
 							strcat(buffer, "\"></iframe>");
 
-							strcat(html, buffer);
+							append(html, buffer);
 
 							free(buffer);
-							buffer = NULL;
 						}
 					}
-					if (start_len == strlen(html)) {
+					if (tail == html->tail) {
 						i = start_link;
-						strcat(html, "![[");
+						append(html, "![[");
 					}
 				} else {
-					int c = strlen(html);
-					html[c] = md_string[i];
-					html[c+1] = 0;
+					append_c(html, md_string[i]);
 				}
 				break;
-			case '[': 
+			case '[':
 				int start_alias = ++i;
-				start_len = strlen(html);
+				tail = html->tail;
 				while (md_string[++i]) {
 					if (md_string[i] == ']' && md_string[++i] == '('){
 						int start_link = ++i;
@@ -266,27 +255,22 @@ char* parse_block_md(char *md_string){
 								int anchor_len = length_alias + length_link + strlen("<a href=\"\"></a>") + 1;
 								char anchor[anchor_len];
 								sprintf(anchor, "<a href=\"%s\">%s</a>",link, alias);
-								strcat(html, anchor);
+								append(html, anchor);
 							}
 						}
 						break;
 					}	
 				}
-				if (start_len == strlen(html)){
+				if (tail == html->tail) {
 					i = start_alias;
-					strcat(html, "[");
+					append(html, "[");
 				}
 
-			default: 
-				int c = strlen(html);
-				html[c] = md_string[i];
-				html[c+1] = 0;
+				break; // missing?
+			default:
+				append_c(html, md_string[i]);
 		}
 	}
-
-	return html;
-	free( html);
-	html = NULL;
 }
 
 
@@ -313,9 +297,6 @@ int pop(){
 #include <ctype.h>
 
 #define NEXTLINE(a)    a = find_next_char(a, '\n')
-
-char input[MAXLEN];
-char output[MAXLEN];
 
 enum BLOCKTYPE {
 	BT_NONE,
@@ -366,61 +347,53 @@ is_list_item(char *in) {
 	return (strncmp(in, ". ", 2) == 0) ? res : -1;
 }
 
-char *
-start_block(char *out, enum BLOCKTYPE ctype, int hcnt, int ldepth)
+void
+start_block(dstring *out, enum BLOCKTYPE ctype, int hcnt, int ldepth)
 {
 /*	fprintf(stderr, "Opening ");*/
 	switch (ctype) {
 		case BT_HEADER:
 /*			fprintf(stderr, "HEADER");*/
-			strcat(out, "<h0>");
-			out[strlen(out)-2] += hcnt;
+			append(out, "<h0>");
+			out->tail[-2] += hcnt;
 			break;
 		case BT_LIST:
 /*			fprintf(stderr, "LIST");*/
-			out = find_char(out, '\0');
-			for (; ldepth; out++, ldepth--)
-				out[0] = '\t';
-			out[0] = '\0';
-			strcat(out, "<ul>\n");
+			for (; ldepth; ldepth--)
+				append(out, "\t");
+			append(out, "<ul>\n");
 			break;
 		case BT_CODE:
 /*			fprintf(stderr, "CODE");*/
-			strcat(out, "<code>\n");
+			append(out, "<code>\n");
 			break;
 		case BT_TEXT:
 /*			fprintf(stderr, "TEXT");*/
-			strcat(out, "<p>\n");
+			append(out, "<p>\n");
 			break;
 	}
 /*	fprintf(stderr, "\n");*/
-
-	return find_char(out, '\0');
 }
 
-char *
-add_list_item(char *out, int ldepth, char *start, char *end)
+void
+add_list_item(dstring *out, int ldepth, char *start, char *end)
 {
 	char temp;
-	for (ldepth++ ; ldepth; ldepth--, out++)
-		out[0] = '\t';
-	out[0] = '\0';
-	strcat(out, "<li>");
+	for (ldepth++ ; ldepth; ldepth--)
+		append(out, "\t");
+	append(out, "<li>");
 
 	temp = *end;
 	*end = '\0';
 	// check char* start
 	/* TODO:, actually process */
-	start = parse_line_md(start);
-	strcat(out,start);
+	parse_line_md(out, start);
 	*end = temp;
-	strcat(out, "</li>\n");
-
-	return find_char(out, '\0');
+	append(out, "</li>\n");
 }
 
-char *
-end_block(char *out, enum BLOCKTYPE ctype, int hcnt, int ldepth, char *start, char *end)
+void
+end_block(dstring *out, enum BLOCKTYPE ctype, int hcnt, int ldepth, char *start, char *end)
 {
 	char temp;
 /*	fprintf(stderr, "Closed ");*/
@@ -430,52 +403,46 @@ end_block(char *out, enum BLOCKTYPE ctype, int hcnt, int ldepth, char *start, ch
 			temp = *end;
 			*end = '\0';
 			
-			strcat(out, start);
+			append(out, start);
 			*end = temp;
-			strcat(out, "</h0>\n");
-			out[strlen(out)-3] += hcnt;
+			append(out, "</h0>\n");
+			out->tail[-3] += hcnt;
 			break;
 		case BT_LIST:
 /*			fprintf(stderr, "LIST");*/
-			out = find_char(out, '\0');
-			for (; ldepth; out++, ldepth--)
-				out[0] = '\t';
-			out[0] = '\0';
-			strcat(out, "</ul>\n");
+			for (; ldepth; ldepth--)
+				append(out, "\t");
+			append(out, "</ul>\n");
 			break;
 		case BT_CODE:
 /*			fprintf(stderr, "CODE");*/
 			temp = *end;
 			*end = '\0';
-			strcat(out, start);
+			append(out, start);
 			*end = temp;
-			strcat(out, "\n</code>\n");
+			append(out, "\n</code>\n");
 			break;
 		case BT_TEXT:
 /*			fprintf(stderr, "TEXT");*/
 			temp = *end;
 			*end = '\0';
 			/* TODO:, actually process */
-			start = parse_block_md(start);
-			strcat(out, start);
+			parse_block_md(out, start);
 			*end = temp;
-			strcat(out, "\n</p>\n");
+			append(out, "\n</p>\n");
 			break;
 	}
 /*	fprintf(stderr, "\n");*/
-
-	return find_char(out, '\0');
 }
 
 char *
 parse(char *in)
 {
 	int hcnt, i, j, k, ldepth;
-	char *start, *end, *pnt;
-	char *out = output;
+	char *start, *end;
+	dstring dout;
 	ldepth = -1;
-	out[0] = '\0';
-	pnt = out;
+	dout = init(MAXLEN);
 	enum BLOCKTYPE ctype = BT_NONE;
 
 	while (*in != '\0') {
@@ -483,7 +450,7 @@ parse(char *in)
 		if (ctype == BT_CODE) {
 			if (strncmp(in, "```", 3) == 0) {
 				end = in-1;
-				pnt = end_block(pnt, ctype, hcnt, ldepth, start, end);
+				end_block(&dout, ctype, hcnt, ldepth, start, end);
 				in += 3;
 				ctype = BT_NONE;
 				ldepth = -1;
@@ -495,7 +462,7 @@ parse(char *in)
 			/* HEADER START */
 			if (*in == '#') {
 				while (ldepth != -1)
-					pnt = end_block(pnt, ctype, hcnt, ldepth--, start, in-1);
+					end_block(&dout, ctype, hcnt, ldepth--, start, in-1);
 				ldepth = -1;
 				ctype = BT_NONE;
 				hcnt = 0;
@@ -511,8 +478,8 @@ parse(char *in)
 
 				start = in;
 				end = find_char(start, '\n');
-				pnt = start_block(pnt, BT_HEADER, hcnt, ldepth);
-				pnt = end_block(pnt, BT_HEADER, hcnt, ldepth, start, end);
+				start_block(&dout, BT_HEADER, hcnt, ldepth);
+				end_block(&dout, BT_HEADER, hcnt, ldepth, start, end);
 				NEXTLINE(in);
 				continue;
 			}
@@ -520,31 +487,31 @@ parse(char *in)
 			/* CODE BLOCK START */
 			if (strncmp(in, "```", 3) == 0) {
 				while (ldepth != -1)
-					pnt = end_block(pnt, ctype, hcnt, ldepth--, start, in-1);
+					end_block(&dout, ctype, hcnt, ldepth--, start, in-1);
 				ldepth = 0;
 				NEXTLINE(in);
 				start = in; /* Probably Undefined behaviour if ```\n``` */
 				ctype = BT_CODE;
-				pnt = start_block(pnt, ctype, hcnt, ldepth);
+				start_block(&dout, ctype, hcnt, ldepth);
 				continue;
 			}
 
 			i = is_list_item(in);
 			if (i != -1) {
 				if (ctype != BT_LIST) {
-					pnt = end_block(pnt, ctype, hcnt, ldepth--, start, in-1);
+					end_block(&dout, ctype, hcnt, ldepth--, start, in-1);
 					ldepth = -1;
 					ctype = BT_LIST;
 				}
 
 				while (ldepth > i)
-					pnt = end_block(pnt, ctype, hcnt, ldepth--, start, end);
+					end_block(&dout, ctype, hcnt, ldepth--, start, end);
 				while (ldepth < i)
-					pnt = start_block(pnt, ctype, hcnt, ++ldepth);
+					start_block(&dout, ctype, hcnt, ++ldepth);
 
 				start = find_list_start(in);
 				end = find_char(start, '\n');
-				pnt = add_list_item(pnt, ldepth, start, end);
+				add_list_item(&dout, ldepth, start, end);
 				NEXTLINE(in);
 				ldepth = i;
 				continue;
@@ -553,15 +520,15 @@ parse(char *in)
 			/* Blank line stops everything */
 			if (*in == '\n') {
 				while (ldepth != -1)
-					pnt = end_block(pnt, ctype, hcnt, ldepth--, start, in-1);
+					end_block(&dout, ctype, hcnt, ldepth--, start, in-1);
 				ldepth = -1;
 				ctype = BT_NONE;
 			} else if (ctype != BT_TEXT) {
 				while (ldepth != -1)
-					pnt = end_block(pnt, ctype, hcnt, ldepth--, start, in-1);
+					end_block(&dout, ctype, hcnt, ldepth--, start, in-1);
 				ldepth = 0;
 				ctype = BT_TEXT;
-				pnt = start_block(pnt, ctype, hcnt, ldepth);
+				start_block(&dout, ctype, hcnt, ldepth);
 				start = in;
 			}
 			NEXTLINE(in);
@@ -569,9 +536,9 @@ parse(char *in)
 	}
 
 	while (ldepth != -1)
-		pnt = end_block(pnt, ctype, hcnt, ldepth--, start, in-1);
+		end_block(&dout, ctype, hcnt, ldepth--, start, in-1);
 
-	return out;
+	return dout.ptr;
 }
 
 /*
