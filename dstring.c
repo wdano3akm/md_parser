@@ -1,6 +1,7 @@
 #include <stddef.h>
 #include <stdlib.h>
 #include <string.h>
+#include <stdarg.h>
 
 #include "dstring.h"
 
@@ -46,3 +47,26 @@ append_c(dstring *str, char c)
 	str->tail++;
 	str->tail[0] = '\0';
 }
+
+void dsprintf(dstring *str, char *fmt, ...){
+
+	va_list ap;
+	int d;
+	char c, *s;
+
+	va_start(ap, fmt);
+	while (*fmt){
+		if (*fmt++ != '%') {
+			append_c(str, fmt[-1]);
+			continue;
+		}
+		switch (*fmt++) {
+			case 's':
+				s = va_arg(ap, char *);
+				append(str, s);
+				break;
+		}
+	}
+	va_end(ap);
+}
+
