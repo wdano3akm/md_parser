@@ -3,6 +3,7 @@
 #include <string.h>
 
 #include "dstring.h"
+#include "config.h"
 
 #define STACK_SIZE 2048
 #define MAXLEN 2048
@@ -38,15 +39,7 @@ void push(int);
 int pop();
 void parse_line_md(dstring *, char*);
 void parse_block_md(dstring *, char*);
-
-/*
-int main(){
-	char* text = parse_inline_md("");
-	int i = 0;
-	while (text[i]) putchar(text[i++]);
-	return 0;
-}
-*/
+void add_file(dstring *, char*);
 
 void
 parse_line_md(dstring *html, char *md_string)
@@ -78,7 +71,7 @@ parse_line_md(dstring *html, char *md_string)
 				}
 				break;
 			case '\n':
-				fprintf(stderr, "%s:%d: Shouldn't reach this code\n", __FILE__, __LINE__);
+//				fprintf(stderr, "%s:%d: Shouldn't reach this code\n", __FILE__, __LINE__);
 				return;
 			case '`':
 				x = pop();
@@ -102,10 +95,9 @@ parse_line_md(dstring *html, char *md_string)
 							char file_location[length + 1];
 							strncpy(file_location, md_string + start_link, length);
 							file_location[length] = '\0';
-
+						
 							int buffer_size = length + strlen("<iframe src=\"\"></iframe>") + 1;
 							char* buffer = calloc(1, buffer_size);
-
 							strcat(buffer, "<iframe src=\"");
 							strcat(buffer, file_location);
 							strcat(buffer, "\"></iframe>");
@@ -113,6 +105,7 @@ parse_line_md(dstring *html, char *md_string)
 							append(html, buffer);
 
 							free(buffer);
+							break;
 						}
 					}
 					if (tail == html->tail) {
@@ -144,13 +137,13 @@ parse_line_md(dstring *html, char *md_string)
 							}
 						}
 						break;
-					}	
+					}
 				}
 				if (tail == html->tail) {
 					i = start_alias;
 					append(html, "[");
 				}
-				break; // missing?
+				break;
 			default:
 				append_c(html, md_string[i]);
 		}
@@ -190,7 +183,7 @@ parse_block_md(dstring *html, char *md_string){
 				// check for 2 consecutive \n to </p> <p> or just one to \br
 				if (md_string[++i] == '\n'){
 					append(html, "</p>\n<p>\n");
-					fprintf(stderr, "%s:%d: Shouldn't reach this code\n", __FILE__, __LINE__);
+//					fprintf(stderr, "%s:%d: Shouldn't reach this code\n", __FILE__, __LINE__);
 				} else {
 					append(html, "<br />\n");
 					i--;
@@ -209,29 +202,25 @@ parse_block_md(dstring *html, char *md_string){
 				if ((i == 0 || md_string[i-1] == '\n') && md_string[i+1] == '[' && md_string[i+2] == '[') {
 					int start_link = i+3;
 					while (md_string[++i]) {
-						if (md_string[i] == ']' && md_string[++i] == ']') {
+						if (!strncmp(&md_string[i], "]]", 2)) {
+							i += 1;
 							int length = i - start_link - 1;
 
-							char file_location[length + 1];
-							strncpy(file_location, md_string + start_link, length);
+							char *file_location = &md_string[start_link];
 							file_location[length] = '\0';
+							
+							add_file(html, file_location);
 
-							int buffer_size = length + strlen("<iframe src=\"\"></iframe>") + 1;
-							char* buffer = calloc(1, buffer_size);
-
-							strcat(buffer, "<iframe src=\"");
-							strcat(buffer, file_location);
-							strcat(buffer, "\"></iframe>");
-
-							append(html, buffer);
-
-							free(buffer);
+							file_location[length] = ']';
+							break;
 						}
 					}
+				
 					if (tail == html->tail) {
 						i = start_link;
 						append(html, "![[");
 					}
+					
 				} else {
 					append_c(html, md_string[i]);
 				}
@@ -541,15 +530,19 @@ parse(char *in)
 	return dout.ptr;
 }
 
-/*
-int
-main(int argc, char **argv)
-{
-	FILE *mdin = fopen(argv[1], "r");
-	fread(input, 1, MAXLEN, mdin);
-	fclose(mdin);
-
-	parse(input);
-	fprintf(stdout, "%s", output);
+void add_file(dstring *str, char *filepath){
+	char *ext;
+	char *end = strrchr(filepath, '.');
+	if (!end){
+		// TODO: think about edge cases
+		dsprintf(str,"<%s src=\"%s%s\"></%s>",  ext , prefix_path,  filepath, ext);
+		return;
+	}
+	end++;
+	switch (*end) {
+		case 'p': if (*++end== 'd') ext = "iframe"; else ext = "img"; break;
+		case 'j': ext = "img"; break;
+		default: ext = "iframe"; break;
+	}
+	dsprintf(str,"<%s src=\"%s%s\"></%s>",  ext , prefix_path,  filepath, ext);
 }
-*/
