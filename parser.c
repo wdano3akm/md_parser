@@ -3,6 +3,7 @@
 #include <string.h>
 
 #include "dstring.h"
+#include "config.h"
 
 #define STACK_SIZE 2048
 #define MAXLEN 2048
@@ -534,7 +535,7 @@ void add_file(dstring *str, char *filepath){
 	char *end = strrchr(filepath, '.');
 	if (!end){
 		// TODO: think about edge cases
-		dsprintf(str,"<%s src=\"../../%s\"></%s>",  ext , filepath, ext);
+		dsprintf(str,"<%s src=\"%s%s\"></%s>",  ext , prefix_path,  filepath, ext);
 		return;
 	}
 	end++;
@@ -543,5 +544,5 @@ void add_file(dstring *str, char *filepath){
 		case 'j': ext = "img"; break;
 		default: ext = "iframe"; break;
 	}
-	dsprintf(str,"<%s src=\"../../%s\"></%s>",  ext , filepath, ext);
+	dsprintf(str,"<%s src=\"%s%s\"></%s>",  ext , prefix_path,  filepath, ext);
 }
