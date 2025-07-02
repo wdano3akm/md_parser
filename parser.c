@@ -90,7 +90,7 @@ parse_line_md(dstring *html, char *md_string)
 					append(html, "<code>");
 				} break;
 			case '!':
-				if (md_string[i-1] != '\n')
+				if (i != 0 && md_string[i-1] != '\n')
 					continue;
 				tail = html->tail;
 				if (md_string[++i] == '[' && md_string[++i] == '[') {
@@ -206,7 +206,7 @@ parse_block_md(dstring *html, char *md_string){
 				} break;
 			case '!':
 				tail = html->tail;
-				if ((md_string[i-1] == '\n') && md_string[i+1] == '[' && md_string[i+2] == '[') {
+				if ((i == 0 || md_string[i-1] == '\n') && md_string[i+1] == '[' && md_string[i+2] == '[') {
 					int start_link = i+3;
 					while (md_string[++i]) {
 						if (md_string[i] == ']' && md_string[++i] == ']') {
