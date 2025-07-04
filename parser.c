@@ -44,6 +44,7 @@ void add_file(dstring *, char*);
 void
 parse_line_md(dstring *html, char *md_string)
 {
+    fprintf(stderr, "PARSE LINE:\n%s\n", md_string);
 	int i = 0;
 	char *tail;
 
@@ -118,22 +119,20 @@ parse_line_md(dstring *html, char *md_string)
 				int start_alias = ++i;
 				tail = html->tail;
 				while (md_string[++i]) {
-					if (md_string[i] == ']' && md_string[++i] == '('){
-						int start_link = ++i;
+					if (strncmp(md_string+i, "](", 2)) {
+                        i += 2;
+						char *start_link = md_string + i;
 						while (md_string[++i]) {
 							if (md_string[i] == ')') {
-								int length_link = i - start_link ;
-								char link[length_link + 1];
-								strncpy(link,md_string + start_link, length_link);
-								link[length_link] = '\0';
-								int length_alias = start_link - start_alias - 2;
-								char alias[length_alias+ 1];
-								strncpy(alias ,md_string + start_alias, length_alias);
-								alias[length_alias] = '\0';
-								int anchor_len = length_alias + length_link + strlen("<a href=\"\"></a>") + 1;
-								char anchor[anchor_len];
-								sprintf(anchor, "<a href=\"%s\">%s</a>",link, alias);
-								append(html, anchor);
+                                start_link[-2] = 0;
+                                md_string[i] = 0;
+
+                                dsprintf(html, "<a href=\"%s\">%s</a>", start_link, md_string + start_alias);
+
+
+                                start_link[-2] = ']';
+                                md_string[i] = ')';
+                                break;
 							}
 						}
 						break;
@@ -155,6 +154,7 @@ void
 parse_block_md(dstring *html, char *md_string){
 	int i = 0;
 	char *tail;
+    fprintf(stderr, "PARSE BLOCK:\n%s\n", md_string);
 
 	for(; md_string[i]; i++){
 		switch (md_string[i]) {
@@ -229,33 +229,30 @@ parse_block_md(dstring *html, char *md_string){
 				int start_alias = ++i;
 				tail = html->tail;
 				while (md_string[++i]) {
-					if (md_string[i] == ']' && md_string[++i] == '('){
-						int start_link = ++i;
+					if (!strncmp(md_string+i, "](", 2)) {
+                        i += 2;
+						char *start_link = md_string + i;
 						while (md_string[++i]) {
 							if (md_string[i] == ')') {
-								int length_link = i - start_link ;
-								char link[length_link + 1];
-								strncpy(link,md_string + start_link, length_link);
-								link[length_link] = '\0';
-								int length_alias = start_link - start_alias - 2;
-								char alias[length_alias+ 1];
-								strncpy(alias ,md_string + start_alias, length_alias);
-								alias[length_alias] = '\0';
-								int anchor_len = length_alias + length_link + strlen("<a href=\"\"></a>") + 1;
-								char anchor[anchor_len];
-								sprintf(anchor, "<a href=\"%s\">%s</a>",link, alias);
-								append(html, anchor);
+                                start_link[-2] = 0;
+                                md_string[i] = 0;
+
+                                dsprintf(html, "<a href=\"%s\">%s</a>", start_link, md_string + start_alias);
+
+
+                                start_link[-2] = ']';
+                                md_string[i] = ')';
+                                break;
 							}
 						}
 						break;
-					}	
+					}
 				}
 				if (tail == html->tail) {
 					i = start_alias;
 					append(html, "[");
 				}
-
-				break; // missing?
+				break;
 			default:
 				append_c(html, md_string[i]);
 		}
